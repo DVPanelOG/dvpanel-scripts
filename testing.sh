@@ -1,12 +1,6 @@
-can u make sure these are going to install onto the panel in the backend properly
-
 #!/usr/bin/env bash
-# Official DVPanel installation script.
-# https://dvpanel.com | github.com/Bread1526/DV-Panel-V-2-
-
-dvpanel_install_path="/opt/dvpanel"
-node="v20.12.2"
-arch=$(uname -m)
+# DVPanel Test Installer UI-Only Version
+# This version does NOT install anything.
 
 # Color functions
 printf "\033c"
@@ -16,267 +10,72 @@ echo_green()   { printf '\033[1;32m%b\033[0m\n' "$@"; }
 echo_yellow()  { printf '\033[1;33m%b\033[0m\n' "$@"; }
 echo_cyan_n()  { printf '\033[1;36m%b\033[0m' "$@"; }
 
-# Normalize architecture
-case "$arch" in
-  x86_64) arch=x64 ;;
-  aarch64) arch=arm64 ;;
-  arm*) arch=armv7l ;;
-  *) echo_red "[x] Unsupported architecture: $arch" && exit 1 ;;
-esac
-
+# Print banner
 echo_cyan "
 ################################################################
 ################################################################
 ###     _______      _______        _   _ ______ _           ###
-###    |  __ \ \    / /  __ \ /\   | \ | |  ____| |          ###
-###    | |  | \ \  / /| |__) /  \  |  \| | |__  | |          ###
-###    | |  | |\ \/ / |  ___/ /\ \ |     |  __| | |          ###
-###    | |__| | \  /  | |  / ____ \| |\  | |____| |____      ###
-###    |_____/   \/   |_| /_/    \_\_| \_|______|______|     ###
+###    |  __ \\ \\    / /  __ \\ /\\   | \\ | |  ____| |          ###
+###    | |  | \\ \\  / /| |__) /  \\  |  \\| | |__  | |          ###
+###    | |  | |\\ \\/ / |  ___/ /\\ \\ |     |  __| | |          ###
+###    | |__| | \\  /  | |  / ____ \\| |\\  | |____| |____      ###
+###    |_____/   \\/   |_| /_/    \\_\\_| \\_|______|______|     ###
 ###                                                          ###
-###           Welcome to the DVPanel Installer!              ###
+###       Welcome to the DVPanel TEST Installer (UI Only)    ###
 ###                                                          ###
 ################################################################
 ################################################################
-         
-"                                                    
+"
 
-# Root check
-if [ "$(id -u)" -ne 0 ]; then
-  echo_red "[!] This script must be run as root. Use: sudo bash $0"
-  exit 1
-fi
-
-Red_Error() {
-  echo_red "\n================================================="
-  echo_red "$@"
-  echo_red "=================================================\n"
-  exit 1
+# Simulate owner credentials generation
+generate_random_string() {
+  tr -dc 'A-Za-z0-9' </dev/urandom | head -c 9
 }
 
-Clean_Unsupported_Repos() {
-  if grep -q "rspamd.com" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
-    echo_yellow "[!] Removing unsupported rspamd repository..."
-    sudo rm -f /etc/apt/sources.list.d/rspamd.list
-    sudo sed -i '/rspamd.com/d' /etc/apt/sources.list
-  fi
-}
+OWNER_USERNAME="owner$(generate_random_string)"
+OWNER_PASSWORD="$(generate_random_string)"
+SESSION_PASSWORD="$(generate_random_string)$(generate_random_string)"
+INSTALLATION_CODE="$(generate_random_string)$(generate_random_string)"
 
-Install_Node() {
-  echo_cyan "[+] Installing Node.js $node..."
+# Fake shimmer effect
+shimmer() {
+  local text="$1"
+  local delay=0.05
+  local colors=('\033[1;32m' '\033[1;36m')
+  local n=${#text}
 
-  node_install_path="/opt/node-$node-linux-$arch"
-  rm -rf "$node_install_path"
-  cd /opt || Red_Error "[x] Cannot cd to /opt"
-
-  rm -f "node-$node-linux-$arch.tar.gz"
-  wget "https://nodejs.org/dist/$node/node-$node-linux-$arch.tar.gz" || Red_Error "[x] Failed to download Node.js"
-
-  tar -zxf "node-$node-linux-$arch.tar.gz" || Red_Error "[x] Failed to extract Node.js"
-  rm -f "node-$node-linux-$arch.tar.gz"
-
-  [[ -f "$node_install_path/bin/node" ]] || Red_Error "[x] Node installation failed"
-
-  export PATH="$node_install_path/bin:$PATH"
-
-  echo_green "[✓] Node.js installed: $(node -v)"
-  echo_yellow "npm version: $(npm -v)"
-}
-
-Install_DVPanel() {
-  echo_cyan "[+] Installing DVPanel..."
-
-  systemctl disable --now dvpanel-{web,daemon} &>/dev/null
-  rm -f /etc/systemd/system/dvpanel-{daemon,web}.service
-  systemctl daemon-reload
-
-  mkdir -p "$dvpanel_install_path" || Red_Error "[x] Failed to create install dir"
-  cd "$dvpanel_install_path" || Red_Error "[x] Cannot cd into install dir"
-
-  echo_cyan "[+] Cloning DVPanel repo..."
-  git clone https://github.com/Bread1526/DV-Panel-V-2-.git . || Red_Error "[x] Git clone failed"
-
-  echo_cyan "[+] Writing .npmrc to use npmmirror (faster)"
-  echo "registry=https://registry.npmmirror.com" > .npmrc
-
-  echo_cyan "[+] Generating secure .env.local..."
-
-  # Helper function to generate random 9-char alphanumeric strings
-  generate_random_string() {
-    tr -dc 'A-Za-z0-9' </dev/urandom | head -c 9
-  }
-
-  OWNER_USERNAME="owner$(generate_random_string)"
-  OWNER_PASSWORD="$(generate_random_string)"
-  SESSION_PASSWORD="$(generate_random_string)$(generate_random_string)" # 18 chars total
-  INSTALLATION_CODE="$(generate_random_string)$(generate_random_string)" # 18 chars total
-
-cat > .env.local <<EOF
-##############################################################
-#                DVPanel Environment Template                #
-#        Copy this file to .env.local and configure it       #
-#                                                            #
-#  ⚠️  WARNING: DO NOT EDIT THIS FILE ONCE GENERATED!        #
-#  ⚠️  Manual changes can cause critical security issues.    #
-#                                                            #
-#  ➤ To safely inspect environment values, use: info.sh      #
-#                                                            #
-#  ❌ Do NOT commit env.local to any public repository.      #
-##############################################################
-
-###############################
-# 🔐 Session Security         #
-###############################
-# Used to secure DVPanel sessions (e.g., iron-session or JWT fallback).
-# Must be a strong, unique 32+ character secret.
-# ➤ Generate with: openssl rand -hex 32
-SESSION_PASSWORD="$SESSION_PASSWORD"
-
-###############################
-# 🔒 Data File Encryption     #
-###############################
-# Used to encrypt local .json files (users, logs, settings).
-# Keep this secure and unique per install.
-# ➤ Generate with: openssl rand -hex 32
-INSTALLATION_CODE="$INSTALLATION_CODE"
-
-###############################
-# 👑 Primary Owner Account    #
-###############################
-# Credentials for the fallback super-admin "Owner" account.
-# This account is checked **before** any user file is read.
-# An encrypted JSON file will be created/used on successful login.
-OWNER_USERNAME="$OWNER_USERNAME"
-OWNER_PASSWORD="$OWNER_PASSWORD"
-
-###############################
-# 📁 Local Data Path (Optional) #
-###############################
-# Absolute or relative path for DVPanel's persistent data storage.
-# If unset, defaults to: ./.dvpanel_data/
-# Example (Linux): /var/opt/dvpanel_data
-DVSPANEL_DATA_PATH="./.dvpanel_data/"
-EOF
-
-  echo_green "[✓] .env.local generated with random secure credentials."
-  echo_yellow "⚠️  Owner credentials:"
-  echo_yellow "    Username: $OWNER_USERNAME"
-  echo_yellow "    Password: $OWNER_PASSWORD"
-
-  # === Inserted backend install snippet here ===
-#NONE FOR TESTING
-  # === End inserted snippet ===
-
-  echo_cyan "[+] Installing backend dependencies..."
-  echo_yellow "    (This may take a while...)\n"
-
-  npm install --verbose || Red_Error "[x] npm install failed"
-
-  echo_green "[✓] All dependencies installed successfully"
-}
-
-Create_Service() {
-  echo_cyan "[+] Creating systemd services..."
-
-  cat > /etc/systemd/system/dvpanel-daemon.service <<EOF
-[Unit]
-Description=DVPanel Daemon
-[Service]
-WorkingDirectory=$dvpanel_install_path/daemon
-ExecStart=$node_install_path/bin/node app.js
-Restart=on-failure
-Environment="PATH=$PATH"
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  cat > /etc/systemd/system/dvpanel-web.service <<EOF
-[Unit]
-Description=DVPanel Web
-[Service]
-WorkingDirectory=$dvpanel_install_path/web
-ExecStart=$node_install_path/bin/node app.js
-Restart=on-failure
-Environment="PATH=$PATH"
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  systemctl daemon-reload
-  systemctl enable --now dvpanel-{daemon,web}.service
-  echo_green "[✓] Services started and enabled"
-}
-
-Print_Completion() {
-  LAN_IP=$(ip route get 1 | awk '{print $7;exit}')
-  LOG_FILE="/opt/dvpanel/install_log_$(date +'%Y%m%d_%H%M%S').log"
-
-  shimmer() {
-    local text="$1"
-    local delay=0.05
-    local colors=('\033[1;32m' '\033[1;36m')
-    local n=${#text}
-
-    for ((i = 0; i < n; i++)); do
-      local c="${text:$i:1}"
-      local color="${colors[i % ${#colors[@]}]}"
-      echo -ne "${color}${c}\033[0m"
-      sleep "$delay"
-    done
-    echo ""
-  }
-
-  echo "" | tee -a "$LOG_FILE"
-  shimmer "=== FINAL OUTPUT ===" | tee -a "$LOG_FILE"
-
-  {
-    echo ""
-    echo " 🎉 DVPanel Installed Successfully!"
-    echo ""
-    echo "➡ Web Interface:       http://${LAN_IP}:23333"
-    echo "➡ Daemon WebSocket:    ws://${LAN_IP}:24444"
-    echo ""
-    echo "🔑 Owner Login:"
-    echo "  ➤ Username: ${OWNER_USERNAME}"
-    echo "  ➤ Password: ${OWNER_PASSWORD}"
-    echo ""
-    echo "📘 Docs: https://dvpanel.com/docs"
-    echo "🧠 Router Help: https://dvpanel.com/routers"
-    echo ""
-    echo "🔥 Firewall Rule Template:"
-    echo "# Example (edit with actual ports):"
-    echo "sudo ufw allow 23333/tcp"
-    echo "sudo ufw allow 24444/tcp"
-    echo ""
-    echo "📁 Log saved to: $LOG_FILE"
-    echo ""
-  } | tee -a "$LOG_FILE"
-}
-
-
-Install_Dependencies() {
-  echo_cyan_n "[+] Installing required packages (git, tar, wget)... "
-  if command -v yum &>/dev/null; then
-    yum install -y git tar wget
-  elif command -v apt-get &>/dev/null; then
-    apt-get update && apt-get install -y git tar wget
-  elif command -v pacman &>/dev/null; then
-    pacman -Syu --noconfirm git tar wget
-  elif command -v zypper &>/dev/null; then
-    zypper --non-interactive install git tar wget
-  else
-    Red_Error "[x] No supported package manager found!"
-  fi
-
-  for tool in git tar wget; do
-    command -v "$tool" &>/dev/null || Red_Error "[x] Missing required tool: $tool"
+  for ((i = 0; i < n; i++)); do
+    local c="${text:$i:1}"
+    local color="${colors[i % ${#colors[@]}]}"
+    echo -ne "${color}${c}\033[0m"
+    sleep "$delay"
   done
-  echo_green "Success"
+  echo ""
 }
 
-# Main Execution Flow
-Install_Dependencies
-Install_Node
-Install_DVPanel
-Create_Service
-Print_Completion
+# Simulate final output
+LAN_IP="127.0.0.1"
+LOG_FILE="/tmp/dvpanel_test_install_log.txt"
+
+echo ""
+shimmer "=== FINAL OUTPUT ==="
+echo_green "🎉 DVPanel UI Test Complete! (Nothing was installed)"
+echo ""
+echo_yellow "➡ Web Interface (Simulated):       http://${LAN_IP}:23333"
+echo_yellow "➡ Daemon WebSocket (Simulated):    ws://${LAN_IP}:24444"
+echo ""
+echo_yellow "🔑 Owner Login:"
+echo_yellow "  ➤ Username: ${OWNER_USERNAME}"
+echo_yellow "  ➤ Password: ${OWNER_PASSWORD}"
+echo ""
+echo_cyan "📘 Docs: https://dvpanel.com/docs"
+echo_cyan "🧠 Router Help: https://dvpanel.com/routers"
+echo ""
+echo_cyan "🔥 Firewall Rule Template:"
+echo "sudo ufw allow 23333/tcp"
+echo "sudo ufw allow 24444/tcp"
+echo ""
+echo_green "✅ Test mode completed successfully (No changes made)"
+echo ""
+
+exit 0
