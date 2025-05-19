@@ -164,22 +164,7 @@ EOF
   echo_yellow "    Password: $OWNER_PASSWORD"
 
   # === Inserted backend install snippet here ===
-  echo "Installing DVPanel backend..."                        #CHANGE THESE                     
-#####################################################################################
-#####################################################################################                                                                                  ##
-curl -fsSL https://scripts.dvpanel.com/Backend/dvp.sh -o /usr/bin/dvp              ##
-curl -fsSL https://scripts.dvpanel.com/Backend/owner.sh -o /usr/bin/dvp-owner      ##
-curl -fsSL https://scripts.dvpanel.com/Backend/start.sh -o /usr/bin/dvp-start      ##
-curl -fsSL https://scripts.dvpanel.com/Backend/stop.sh -o /usr/bin/dvp-stop        ##
-curl -fsSL https://scripts.dvpanel.com/Backend/update.sh -o /usr/bin/dvp-update    ##
-#####################################################################################
-#####################################################################################
-if [ $? -ne 0 ]; then
-  echo "Error: Failed to download one or more backend scripts."
-  exit 1
-fi
-
-chmod +x /usr/bin/dvp*
+#NONE FOR TESTING
   # === End inserted snippet ===
 
   echo_cyan "[+] Installing backend dependencies..."
